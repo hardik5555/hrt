@@ -1,22 +1,183 @@
 <!DOCTYPE html>
-<html lang="eng">
-	<head>
-		<title>heart</title>
-    <link rel="stylesheet" href="function-heart.css">
-		<meta charset="utf-8">
-	</head>
-	<body>
-      <br>
+<html lang="en">
+<head>
+    <title>Heart Animation</title>
+    <meta charset="utf-8">
+    <style>
+        body {
+            background: black;
+            color: #fff;
+            font-family: "Archivo Black", sans-serif;
+            font-size: 3em;
+            text-align: center;
+            scrollbar-width: none;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        #obal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        .heart {
+            fill: red;
+            position: relative;
+            top: 5px;
+            width: 50px;
+            animation: pulse 1s ease infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.3); }
+            100% { transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
     <div id="obal">
-      <canvas id="c"></canvas>
-      <script>
-        var b = document.body;
-        var c = document.getElementsByTagName('canvas')[0];
-        var a = c.getContext('2d');
-        document.body.clientWidth; 
-      </script>
+        <canvas id="c"></canvas>
     </div>
-    <script src="function-heart.js"></script>
-  </body>
-      
+
+    <script>
+        var b = document.body;
+        var c = document.getElementById('c');
+        var a = c.getContext('2d');
+        
+        // Set canvas to full window size
+        c.width = window.innerWidth;
+        c.height = window.innerHeight;
+        
+        // Handle window resizing
+        window.addEventListener('resize', function() {
+            c.width = window.innerWidth;
+            c.height = window.innerHeight;
+            // Reset the heart path when resizing
+            h = [];
+            calculateHeartPath();
+        });
+
+        var e = []; // trails
+        var h = []; // heart path
+        var O = c.width;
+        var Q = c.height;
+
+        var v = 32; // num trails, num particles per trail & num nodes in heart path
+        var M = Math;
+        var R = M.random;
+        var C = M.cos;
+        var Y = 6.3; // close to Math.PI * 2
+
+        function calculateHeartPath() {
+            for (var i = 0; i < Y; i += 0.2) { // calculate heart nodes
+                h.push([
+                    O/2 + 180 * M.pow(M.sin(i), 3),
+                    Q/2 + 10 * (-(15 * C(i) - 5 * C(2*i) - 2 * C(3*i) - C(4*i)))
+                ]);
+            }
+        }
+        
+        calculateHeartPath();
+
+        // Initialize trails
+        var i = 0;
+        while (i < v) {
+            var x = R() * O;
+            var y = R() * Q;
+
+            var H = i/v * 80 + 280;
+            var S = R() * 40 + 60;
+            var B = R() * 60 + 20;
+
+            var f = []; // create new trail
+
+            var k = 0;
+            while (k < v) { 
+                f[k++] = { // create new particle
+                    x: x, // position 
+                    y: y,
+                    X: 0, // velocity
+                    Y: 0,
+                    R: (1 - k/v) + 1, // radius
+                    S: R() + 1, // acceleration 
+                    q: ~~(R() * v), // target node on heart path
+                    D: i%2*2-1, // direction around heart path
+                    F: R() * 0.2 + 0.7, // friction
+                    f: "hsla("+~~H+","+~~S+"%,"+~~B+"%,.1)" // colour
+                };
+            }
+
+            e[i++] = f; // dots are a 2d array of trails x particles
+        }
+
+        function render(_) { // draw particle
+            a.fillStyle = _.f;
+            a.beginPath();
+            a.arc(_.x, _.y, _.R, 0, Y, 1);
+            a.closePath();
+            a.fill();
+        }
+
+        function loop() {
+            a.fillStyle = "rgba(0,0,0,.2)"; // clear screen
+            a.fillRect(0, 0, O, Q);
+
+            i = v;
+            while (i--) {
+                var f = e[i]; // get worm
+                var u = f[0]; // get 1st particle of worm
+                var q = h[u.q]; // get current node on heart path
+                var D = u.x - q[0]; // calc distance
+                var E = u.y - q[1];
+                var G = M.sqrt((D * D) + (E * E));
+                
+                if (G < 10) { // has trail reached target node?
+                    if (R() > 0.95) { // randomly send a trail elsewhere
+                        u.q = ~~(R() * v);
+                    } else {
+                        if (R() > 0.99) u.D *= -1; // randomly change direction
+                        u.q += u.D;
+                        u.q %= v;
+                        if (u.q < 0) u.q += v;
+                    }
+                }
+
+                u.X += -D / G * u.S; // calculate velocity
+                u.Y += -E / G * u.S;
+
+                u.x += u.X; // apply velocity
+                u.y += u.Y;
+
+                render(u); // draw the first particle
+
+                u.X *= u.F; // apply friction
+                u.Y *= u.F;
+
+                k = 0;
+                while (k < v-1) { // loop through remaining dots
+                    var T = f[k]; // this particle
+                    var N = f[++k]; // next particle
+
+                    N.x -= (N.x - T.x) * 0.7; // use zenos paradox to create trail
+                    N.y -= (N.y - T.y) * 0.7;
+
+                    render(N);
+                }
+            }
+        }
+
+        (function animate() {
+            requestAnimationFrame(animate);
+            loop();
+        })();
+    </script>
+</body>
 </html>

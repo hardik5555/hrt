@@ -1,155 +1,119 @@
- 
-window.requestAnimationFrame =
-window.__requestAnimationFrame ||
-    window.requestAnimationFrame ||
-    window.webkitRequestAnimationFrame ||
-    window.mozRequestAnimationFrame ||
-    window.oRequestAnimationFrame ||
-    window.msRequestAnimationFrame ||
-    (function () {
-        return function (callback, element) {
-            var lastTime = element.__lastTime;
-            if (lastTime === undefined) {
-                lastTime = 0;
-            }
-            var currTime = Date.now();
-            var timeToCall = Math.max(1, 33 - (currTime - lastTime));
-            window.setTimeout(callback, timeToCall);
-            element.__lastTime = currTime + timeToCall;
-        };
-    })();
-window.isDevice = 
-(/android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(((navigator.userAgent 
-    || navigator.vendor || window.opera)).toLowerCase()));
-var loaded = false;
-var init = function () {
-if (loaded) return;
-loaded = true;
-var mobile = window.isDevice;
-var koef = mobile ? 0.5 : 1;
-var canvas = document.getElementById('heart');
-var ctx = canvas.getContext('2d');
-var width = canvas.width = koef * innerWidth;
-var height = canvas.height = koef * innerHeight;
-var rand = Math.random;
-ctx.fillStyle = "rgba(0,0,0,1)";
-ctx.fillRect(0, 0, width, height);
+e = [];// trails
+h = [];// heart path
+O = c.width = innerWidth;
+Q = c.height = innerHeight;
 
-var heartPosition = function (rad) {
-    //return [Math.sin(rad), Math.cos(rad)];
-    return [Math.pow(Math.sin(rad), 3), 
-        -(15 * Math.cos(rad) - 5 * 
-        Math.cos(2 * rad) - 2 * 
-        Math.cos(3 * rad) - Math.cos(4 * rad))];
-};
-var scaleAndTranslate = function (pos, sx, sy, dx, dy) {
-    return [dx + pos[0] * sx, dy + pos[1] * sy];
-};
-
-window.addEventListener('resize', function () {
-    width = canvas.width = koef * innerWidth;
-    height = canvas.height = koef * innerHeight;
-    ctx.fillStyle = "rgba(0,0,0,1)";
-    ctx.fillRect(0, 0, width, height);
-});
-
-var traceCount = mobile ? 20 : 50;
-var pointsOrigin = [];
-var i;
-var dr = mobile ? 0.3 : 0.1;
-for (i = 0; i < Math.PI * 2; i += dr) 
-pointsOrigin.push(scaleAndTranslate(heartPosition(i), 210, 13, 0, 0));
-for (i = 0; i < Math.PI * 2; i += dr) 
-pointsOrigin.push(scaleAndTranslate(heartPosition(i), 150, 9, 0, 0));
-for (i = 0; i < Math.PI * 2; i += dr) 
-pointsOrigin.push(scaleAndTranslate(heartPosition(i), 90, 5, 0, 0));
-var heartPointsCount = pointsOrigin.length;
-
-var targetPoints = [];
-var pulse = function (kx, ky) {
-    for (i = 0; i < pointsOrigin.length; i++) {
-        targetPoints[i] = [];
-        targetPoints[i][0] = kx * pointsOrigin[i][0] + width / 2;
-        targetPoints[i][1] = ky * pointsOrigin[i][1] + height / 2;
-    }
-};
-
-var e = [];
-for (i = 0; i < heartPointsCount; i++) {
-    var x = rand() * width;
-    var y = rand() * height;
-    e[i] = {
-        vx: 0,
-        vy: 0,
-        R: 2,
-        speed: rand() + 5,
-        q: ~~(rand() * heartPointsCount),
-        D: 2 * (i % 2) - 1,
-        force: 0.2 * rand() + 0.7,
-        f: "hsla(0," + ~~(40 * rand() + 60) + "%," + ~~(60 * rand() + 20) + "%,.3)",
-        trace: []
-    };
-    for (var k = 0; k < traceCount; k++) e[i].trace[k] = {x: x, y: y};
+v = 32; // num trails, num particles per trail & num nodes in heart path
+M = Math;
+R = M.random;
+C = M.cos;
+Y = 6.3;// close to 44/7 or Math.PI * 2 - 6.3 seems is close enough. 
+for( i = 0; i <Y; i+= .2 ) { // calculate heart nodes, from http://mathworld.wolfram.com/HeartCurve.html
+	h.push([
+		O/2 + 180*M.pow(M.sin(i), 3),
+		Q/2 + 10 * (-(15*C(i) - 5*C(2*i) - 2*C(3*i) - C(4*i)))
+	])
 }
 
-var config = {
-    traceK: 0.4,
-    timeDelta: 0.01
-};
+i = 0;
+while (i < v ) {
 
-var time = 0;
-var loop = function () {
-    var n = -Math.cos(time);
-    pulse((1 + n) * .5, (1 + n) * .5);
-    time += ((Math.sin(time)) < 0 ? 9 : (n > 0.8) ? .2 : 1) * config.timeDelta;
-    ctx.fillStyle = "rgba(0,0,0,.1)";
-    ctx.fillRect(0, 0, width, height);
-    for (i = e.length; i--;) {
-        var u = e[i];
-        var q = targetPoints[u.q];
-        var dx = u.trace[0].x - q[0];
-        var dy = u.trace[0].y - q[1];
-        var length = Math.sqrt(dx * dx + dy * dy);
-        if (10 > length) {
-            if (0.95 < rand()) {
-                u.q = ~~(rand() * heartPointsCount);
-            }
-            else {
-                if (0.99 < rand()) {
-                    u.D *= -1;
-                }
-                u.q += u.D;
-                u.q %= heartPointsCount;
-                if (0 > u.q) {
-                    u.q += heartPointsCount;
-                }
-            }
-        }
-        u.vx += -dx / length * u.speed;
-        u.vy += -dy / length * u.speed;
-        u.trace[0].x += u.vx;
-        u.trace[0].y += u.vy;
-        u.vx *= u.force;
-        u.vy *= u.force;
-        for (k = 0; k < u.trace.length - 1;) {
-            var T = u.trace[k];
-            var N = u.trace[++k];
-            N.x -= config.traceK * (N.x - T.x);
-            N.y -= config.traceK * (N.y - T.y);
-        }
-        ctx.fillStyle = u.f;
-        for (k = 0; k < u.trace.length; k++) {
-            ctx.fillRect(u.trace[k].x, u.trace[k].y, 1, 1);
-        }
-    }
-    //ctx.fillStyle = "rgba(255,255,255,1)";
-    //for (i = u.trace.length; i--;) ctx.fillRect(targetPoints[i][0], targetPoints[i][1], 2, 2);
+	x = R() * O;
+	y = R() * Q;
+	//r = R() * 50 + 200;
+	//b = R() * r;
+	//g = R() * b;
 
-    window.requestAnimationFrame(loop, canvas);
-};
-loop();
-};
+	H = i/v * 80 + 280;
+	S = R() * 40 + 60;
+	B = R() * 60 + 20;
 
-var s = document.readyState;
-if (s === 'complete' || s === 'loaded' || s === 'interactive') init();
-else document.addEventListener('DOMContentLoaded', init, false);
+	f = []; // create new trail
+
+	k = 0;
+	while ( k < v ) { 
+		f[k++] = { // create new particle
+			x : x, // position 
+			y : y,
+			X : 0, // velocity
+			Y : 0,
+			R : (1 - k/v)  + 1, // radius
+			S : R() + 1, // acceleration 
+			q : ~~(R() * v), // target node on heart path
+			//D : R()>.5?1:-1,
+			D : i%2*2-1, // direction around heart path
+			F : R() * .2 + .7, // friction
+			//f : "rgba(" + ~~r + "," + ~~g + "," + ~~b + ",.1)"
+			f : "hsla("+~~H+","+~~S+"%,"+~~B+"%,.1)" // colour
+      
+		}
+	}
+
+	e[i++] = f; // dots are a 2d array of trails x particles
+}
+
+function render(_) { // draw particle
+	a.fillStyle = _.f;
+	a.beginPath();
+	a.arc(_.x, _.y, _.R, 0, Y, 1);
+	a.closePath();
+	a.fill();
+}
+
+function loop(){
+
+	a.fillStyle = "rgba(0,0,0,.2)"; // clear screen
+	a.fillRect(0,0,O,Q);
+
+	i = v;
+	while (i--) {
+
+		f = e[ i ]; // get worm
+		u = f[ 0 ]; // get 1st particle of worm
+		q = h[ u.q ]; // get current node on heart path
+		D = u.x - q[0]; // calc distance
+		E = u.y - q[1];
+		G = M.sqrt( (D * D) + (E * E) );
+		
+		if ( G < 10 ) { // has trail reached target node?
+			if (R() > .95 ) { // randomly send a trail elsewhere
+				u.q = ~~(R() * v);
+			} else {
+				if ( R() > .99) u.D *= -1; // randomly change direction
+				u.q += u.D;
+				u.q %= v;
+				if ( u.q < 0 ) u.q += v;
+			 }
+		}
+
+		u.X += -D / G * u.S; // calculate velocity
+		u.Y += -E / G * u.S;
+
+		u.x += u.X; // apply velocity
+		u.y += u.Y;
+
+		render(u); // draw the first particle
+
+		u.X *= u.F; // apply friction
+		u.Y *= u.F;
+
+		k = 0;
+		while ( k < v-1 ) { // loop through remaining dots
+			
+			T = f[ k ]; // this particle
+			N = f[ ++k ]; // next particle
+
+			N.x -= (N.x - T.x) * .7; // use zenos paradox to create trail
+			N.y -= (N.y - T.y) * .7;
+
+			render(N);
+
+		}
+
+	}
+}; // eo loop()
+
+(function doit(){
+	requestAnimationFrame(doit);
+	loop();
+}());
